@@ -75,5 +75,9 @@ RUN cd /home/vg/PX4-Autopilot && \
 
 COPY dockers/ros_launch_sitl.sh /
 
+RUN git clone https://gist.github.com/7f82b5162c947088432bca9a0b3c61ef.git iris_model && \
+	mv iris_model/iris.sdf /home/vg/PX4-Autopilot/Tools/sitl_gazebo/models/iris/iris.sdf
+	
+
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
