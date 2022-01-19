@@ -74,10 +74,9 @@ RUN cd /home/vg/PX4-Autopilot && \
 	make px4_sitl_default
 
 COPY dockers/ros_launch_sitl.sh /
+COPY artifacts/iris.sdf /home/vg/PX4-Autopilot/Tools/sitl_gazebo/models/iris/
 
-RUN git clone https://gist.github.com/7f82b5162c947088432bca9a0b3c61ef.git iris_model && \
-	mv iris_model/iris.sdf /home/vg/PX4-Autopilot/Tools/sitl_gazebo/models/iris/iris.sdf
-	
+RUN apt-get update && apt-get install -y gstreamer1.0-libav
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]

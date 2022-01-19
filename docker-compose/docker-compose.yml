@@ -1,0 +1,30 @@
+version: '2.3'
+
+services:
+    SITL:
+        image: vector_guidance/ros1:v1.0
+        network_mode: "host"
+        privileged: true
+        command: ./ros_launch_sitl.sh
+        environment:
+            DISPLAY: ${DISPLAY}
+            NVIDIA_VISIBLE_DEVICES: all
+        runtime: nvidia
+        volumes:
+          - /tmp/.X11-unix:/tmp/.X11-unix:ro
+        healthcheck: 
+          test: "exit 0"
+ 
+    balloon_killer:
+        image: vector_guidance/ros1:v1.0
+        network_mode: "host"
+        privileged: true
+        command: bash -c "source /opt/ros/noetic/setup.bash && source /home/vg/vg_ws/devel/setup.bash && rosrun balloon_intercept balloon_killer_node.py"
+        depends_on: 
+            - SITL
+        environment:
+            DISPLAY: ${DISPLAY}
+            NVIDIA_VISIBLE_DEVICES: all
+        runtime: nvidia
+        volumes:
+          - /tmp/.X11-unix:/tmp/.X11-unix:ro
