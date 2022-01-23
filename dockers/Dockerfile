@@ -49,8 +49,25 @@ RUN pip3 install imutils
 # bootstrap rosdep
 RUN rosdep init && rosdep update
 
-# create vg_ws in the docker
+# install graphics
+RUN apt-get install -y xserver-xorg && \
+    dpkg-reconfigure xserver-xorg
 
+RUN apt-get update && apt-get install -y gstreamer1.0-libav
+
+RUN apt-get update
+RUN apt-get install -y mesa-utils
+RUN apt-get install -y binutils
+RUN apt install -y nvidia-driver-470 libnvidia-gl-470 libnvidia-compute-470 libnvidia-decode-470 libnvidia-encode-470 libnvidia-ifr1-470 libnvidia-fbc1-470
+
+# clone PX4 repository from github and make px4_sitl default
+RUN git clone https://github.com/PX4/PX4-Autopilot.git /home/vg/PX4-Autopilot
+
+RUN cd /home/vg/PX4-Autopilot && \
+	git checkout stable && \
+	make px4_sitl_default
+
+# copy workspace and catkin_make
 COPY src/ /home/vg/vg_ws/src
 
 SHELL ["/bin/bash", "-c"]
@@ -58,25 +75,12 @@ SHELL ["/bin/bash", "-c"]
 RUN cd /home/vg/vg_ws && \ 
     source /opt/ros/noetic/setup.bash && \
     catkin_make
-RUN apt-get install -y xserver-xorg && \
-    dpkg-reconfigure xserver-xorg
 
-COPY dockers/ros_entrypoint.sh /
-
-RUN apt-get update
-RUN apt-get install -y mesa-utils
-RUN apt-get install -y binutils
-RUN apt install -y nvidia-driver-470 libnvidia-gl-470 libnvidia-compute-470 libnvidia-decode-470 libnvidia-encode-470 libnvidia-ifr1-470 libnvidia-fbc1-470
-
-RUN git clone https://github.com/PX4/PX4-Autopilot.git /home/vg/PX4-Autopilot
-
-RUN cd /home/vg/PX4-Autopilot && \
-	make px4_sitl_default
-
-COPY dockers/ros_launch_sitl.sh /
-COPY artifacts/iris.sdf /home/vg/PX4-Autopilot/Tools/sitl_gazebo/models/iris/
-
-RUN apt-get update && apt-get install -y gstreamer1.0-libav
+# copy items
+COPY dockers/artifacts/ros_entrypoint.sh /
+COPY dockers/artifacts/ros_launch_sitl.sh /
+COPY dockers/artifacts/iris.sdf /home/vg/PX4-Autopilot/Tools/sitl_gazebo/models/iris/
+COPY dockers/artifacts/mavros_posix_sitl.launch /
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
