@@ -7,5 +7,7 @@
 
 # Run:
 
+        export DISPLAY=:0
+        xhost local:root
         cd docker-compose
         docker-compose up
