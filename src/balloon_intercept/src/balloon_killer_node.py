@@ -9,6 +9,8 @@ from mavros_msgs.msg import State
 from mavros_msgs.srv import SetMode
 from mavros_msgs.srv import CommandBool
 from mavros_msgs.srv import SetMavFrame
+from geometry_msgs.msg import Point
+from std_msgs.msg import Float32
 from copy import deepcopy
 from balloon_trajectory import Balloon
 import time
@@ -22,8 +24,6 @@ class BalloonKiller(threading.Thread):
         self.rate = rospy.Rate(8)
         self.bridge = CvBridge()
 
-        self.video = gazebo_balloon_detector.Video(self)
-        self.video.start()
         self.width = 320
         self.height = 240
 
@@ -56,9 +56,15 @@ class BalloonKiller(threading.Thread):
         self.arming = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.vel_frame = rospy.ServiceProxy('/mavros/setpoint_velocity/mav_frame', SetMavFrame)
 
-    def __call__(self, center, radius):
-        self.center = center
-        self.radius = radius
+        self.center_sub = rospy.Subscriber('/balloon/center', Point, self.center_cb)
+        self.radius_sub = rospy.Subscriber('/balloon/radius', Float32, self.radius_cb)
+
+    def center_cb(self, msg):
+        self.center[0] = msg.x
+        self.center[1] = msg.y
+    
+    def radius_cb(self, msg):
+        self.radius = msg.data
 
     def pose_cb(self, msg):
         self.pose = deepcopy(msg)
