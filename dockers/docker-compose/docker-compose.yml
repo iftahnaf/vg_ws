@@ -5,7 +5,7 @@ services:
         image: iftahnaf/vector_guidance:px4_ros1
         network_mode: "host"
         privileged: true
-        command: ./ros_launch_sitl.sh
+        command: bash -c "./ros_launch_sitl.sh" 
         environment:
             DISPLAY: ${DISPLAY}
             NVIDIA_VISIBLE_DEVICES: all
@@ -17,7 +17,7 @@ services:
         image: iftahnaf/vector_guidance:px4_ros1
         network_mode: "host"
         privileged: true
-        command: bash -c "source /opt/ros/noetic/setup.bash && source /home/vg/vg_ws/devel/setup.bash && sleep 10 && rosrun balloon_intercept balloon_killer_node.py"
+        command: bash -c "export ROS_IP=$(hostname -I | awk '{print $1}') && export ROS_MASTER_URI=http://192.168.0.208:11311 && source /opt/ros/noetic/setup.bash && source /home/vg/vg_ws/devel/setup.bash && sleep 10 && rosrun balloon_intercept balloon_killer_node.py"
         environment:
             DISPLAY: ${DISPLAY}
             NVIDIA_VISIBLE_DEVICES: all
