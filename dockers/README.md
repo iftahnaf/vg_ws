@@ -14,7 +14,7 @@
         --privileged --net=host \
         -p 14570:14570/udp \
         --env=LOCAL_USER_ID="$(id -u)" \
-        iftahnaf/vector_guidance:px4_ros1
+        iftahnaf/vector_guidance:px4_ros1 ./ros_launch_sitl.sh
 
 # run px4 compitable docker:
 

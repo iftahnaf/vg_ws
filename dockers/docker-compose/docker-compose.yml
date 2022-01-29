@@ -12,6 +12,9 @@ services:
         runtime: nvidia
         volumes:
           - /tmp/.X11-unix:/tmp/.X11-unix:ro
+          - /home/iftach/PX4-Autopilot:/home/vg/PX4-Autopilot:rw
+        ports:
+          - "14570/udp"
 
     balloon_detector:
         image: iftahnaf/vector_guidance:px4_ros1
@@ -25,14 +28,14 @@ services:
         volumes:
           - /tmp/.X11-unix:/tmp/.X11-unix:ro
  
-    # balloon_killer:
-    #     image: iftahnaf/vector_guidance:px4_ros1
-    #     network_mode: "host"
-    #     privileged: true
-    #     command: bash -c "source /opt/ros/noetic/setup.bash && source /home/vg/vg_ws/devel/setup.bash && sleep 10 && rosrun balloon_intercept balloon_killer_node.py"
-    #     environment:
-    #         DISPLAY: ${DISPLAY}
-    #         NVIDIA_VISIBLE_DEVICES: all
-    #     runtime: nvidia
-    #     volumes:
-    #       - /tmp/.X11-unix:/tmp/.X11-unix:ro
+    balloon_killer:
+        image: iftahnaf/vector_guidance:px4_ros1
+        network_mode: "host"
+        privileged: true
+        command: bash -c "source /opt/ros/noetic/setup.bash && source /home/vg/vg_ws/devel/setup.bash && sleep 10 && rosrun balloon_intercept balloon_killer_node.py"
+        environment:
+            DISPLAY: ${DISPLAY}
+            NVIDIA_VISIBLE_DEVICES: all
+        runtime: nvidia
+        volumes:
+          - /tmp/.X11-unix:/tmp/.X11-unix:ro

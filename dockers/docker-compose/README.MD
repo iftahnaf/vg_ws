@@ -10,4 +10,4 @@
         export DISPLAY=:0
         xhost local:root
         cd docker-compose
-        docker-compose up
+        UID=${UID} GID=${GID} docker-compose up
