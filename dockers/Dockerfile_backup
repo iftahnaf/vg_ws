@@ -44,11 +44,12 @@ RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu `lsb_release -sc` main" 
 RUN pip3 install -U \
 		osrf-pycommon
 
+RUN pip3 install imutils
+
 # bootstrap rosdep
 RUN rosdep init && rosdep update
 
-RUN pip3 install imutils
-
+# install graphics
 RUN apt-get install -y xserver-xorg && \
     dpkg-reconfigure xserver-xorg
 
@@ -66,6 +67,15 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y apt-utils
 
+RUN cd /home/vg/PX4-Autopilot && \
+	git checkout v1.12.1 && \
+	cd Tools/setup && \
+	./ubuntu.sh
+
+RUN cd /home/vg/PX4-Autopilot && \
+	make px4_sitl_default
+
+# copy workspace and catkin_make
 COPY src/ /home/vg/vg_ws/src
 
 SHELL ["/bin/bash", "-c"]
@@ -77,6 +87,7 @@ RUN cd /home/vg/vg_ws && \
 # copy items
 COPY dockers/artifacts/ros_entrypoint.sh /
 COPY dockers/artifacts/ros_launch_sitl.sh /
+COPY dockers/artifacts/iris.sdf /home/vg/PX4-Autopilot/Tools/sitl_gazebo/models/iris/
 COPY dockers/artifacts/mavros_posix_sitl.launch /
 COPY dockers/artifacts/rcS /
 

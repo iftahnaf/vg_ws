@@ -1,9 +1,8 @@
 #!/bin/bash
 set -e
+yes | cp -rf mavros_posix_sitl.launch /home/vg/PX4-Autopilot/launch/
 
 source /opt/ros/noetic/setup.bash
 source /home/vg/vg_ws/devel/setup.bash
-export ROS_MASTER_URI=http://192.168.0.208:11311
-export ROS_IP=$(hostname -I | awk '{print $1}')
 
 exec "$@"

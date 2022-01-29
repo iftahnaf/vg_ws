@@ -1,5 +1,4 @@
 #!/bin/bash
-yes | cp -rf mavros_posix_sitl.launch /home/vg/PX4-Autopilot/launch/
 source /opt/ros/noetic/setup.bash
 cd /home/vg/PX4-Autopilot
 source Tools/setup_gazebo.bash $(pwd) $(pwd)/build/px4_sitl_default

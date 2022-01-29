@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import rospy
 from cv_bridge import CvBridge
-import gazebo_balloon_detector
 import threading
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
@@ -14,7 +13,6 @@ from std_msgs.msg import Float32
 from copy import deepcopy
 from balloon_trajectory import Balloon
 import time
-import numpy as np
 
 # rosservice call /mavros/setpoint_velocity/mav_frame "mav_frame: 8"
 
