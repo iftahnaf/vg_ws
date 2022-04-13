@@ -11,6 +11,7 @@
         -e DISPLAY=$DISPLAY \
         -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
         -v /home/iftach/PX4-Autopilot:/home/vg/PX4-Autopilot:rw \
+        -v /home/iftach/.gazebo/models/green_sphere:/usr/share/gazebo-11/models/:rw \
         --privileged --net=host \
         -p 14570:14570/udp \
         --env=LOCAL_USER_ID="$(id -u)" \

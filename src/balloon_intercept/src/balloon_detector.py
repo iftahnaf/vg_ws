@@ -13,7 +13,7 @@ import queue
 
 class ROSBalloon():
     def __init__(self):
-        self.rate = rospy.Rate(20)
+        self.rate = rospy.Rate(60)
         self.bridge = CvBridge()
         self.frame_sub = rospy.Subscriber('/iris/usb_cam/image_raw', Image, self.image_cb)
         self.center_pub = rospy.Publisher('/balloon/center', Point, queue_size=10)
@@ -77,12 +77,12 @@ class ROSBalloon():
                 self.center_pub.publish(self.center)
                 self.radius_pub.publish(self.radius)
 
-            time.sleep(0.033)
-
             cv2.imshow('frame', self.frame)
+
             if cv2.waitKey(10) & 0xFF == ord('q'):
                 rospy.loginfo("Terminate balloon_detector node...")
                 break
+            self.rate.sleep()
 
 def main():
     rospy.init_node('balloon_detector')
