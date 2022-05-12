@@ -56,8 +56,10 @@ class BalloonKiller(threading.Thread):
 
         self.center_sub = rospy.Subscriber('/balloon/center', Point, self.center_cb)
         self.radius_sub = rospy.Subscriber('/balloon/radius', Float32, self.radius_cb)
+        self.center = []
 
     def center_cb(self, msg):
+        self.center = [0, 0]
         self.center[0] = msg.x
         self.center[1] = msg.y
     

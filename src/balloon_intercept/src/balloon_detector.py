@@ -51,7 +51,7 @@ class ROSBalloon():
                     M = cv2.moments(_c)
                     center = (int(M["m10"] / M["m00"]),
                                 int(M["m01"] / M["m00"]))
-                    if radius > 5:
+                    if radius > 0:
                         cv2.circle(self.frame, center,
                                 5, (0, 0, 255), -1)
                 try:
@@ -73,7 +73,6 @@ class ROSBalloon():
                 self.center.x = center[0]
                 self.center.y = center[1]
                 self.radius.data = radius
-
                 self.center_pub.publish(self.center)
                 self.radius_pub.publish(self.radius)
 
