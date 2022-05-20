@@ -13,7 +13,7 @@ class Balloon():
         self.rate = rospy.Rate(100)
     
     def est_range(self):
-        balloon = self.balloon_coordinate('green_sphere', "")
+        balloon = self.pose_balloon('green_sphere', "")
         balloon_x = balloon.pose.position.x
         balloon_y = balloon.pose.position.y
         balloon_z = balloon.pose.position.z

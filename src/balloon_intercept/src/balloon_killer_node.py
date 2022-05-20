@@ -13,6 +13,9 @@ from std_msgs.msg import Float32
 from copy import deepcopy
 from balloon_trajectory import Balloon
 import time
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
 
 # rosservice call /mavros/setpoint_velocity/mav_frame "mav_frame: 8"
 
@@ -24,7 +27,9 @@ class BalloonKiller(threading.Thread):
 
         self.width = 320
         self.height = 240
+        self.fov = 1.04719 #[rad]
 
+        self.r_m = 0.5  #balloon radius in [m]
         self.counter = 0
 
         self.pose = PoseStamped()
@@ -150,6 +155,7 @@ class BalloonKiller(threading.Thread):
     def center_frame_controller(self, kw, kh, kr):
         des_range = 2.0
         range = self.balloon.est_range()
+        
         if range:
             rospy.loginfo(" Range from balloon = {}".format(range))
         else:
@@ -163,6 +169,88 @@ class BalloonKiller(threading.Thread):
 
         self.vel_pub.publish(self.des_vel)
 
+    def range_est(self):
+        ##range in drone NED system 
+        x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))
+        y_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
+        z_range_cam = (self.center[1] - (self.height / 2.0))*self.r_m/self.radius
+        
+        range_cam = np.array([x_range_cam, y_range_cam, z_range_cam])
+        
+        return range_cam
+
+    def create_vg_state(self):
+
+            range_cam = self.range_est()
+            local_range =  self.cam_2_local(range_cam)
+            print(local_range)
+
+            vpx = self.vel.twist.linear.x
+            vpy = self.vel.twist.linear.y
+            vpz = self.vel.twist.linear.z
+
+            r = -local_range
+            v = -np.array([vpx, vpy, vpz])
+            print("v= {}".format(v))
+            return r, v
+
+    def cam_2_local(self, vec):
+        ##rotate vector from cam to local (wgazebo world) system
+        
+        cam_2_drone_rot_mat = np.eye(3)  #rotation matrix from camera to drone system
+        
+        qx = self.pose.pose.orientation.x
+        qy = self.pose.pose.orientation.y
+        qz = self.pose.pose.orientation.z
+        qw = self.pose.pose.orientation.w
+
+        local_2_drone_rot_mat = R.from_quat([qx, qy, qz, qw]) #rotation matrix from local to drone system
+        local_2_drone_rot_mat=local_2_drone_rot_mat.as_dcm()
+        
+        drone_2_local_rot_mat = np.linalg.inv(local_2_drone_rot_mat) #rotation matrix from drone to local system
+        
+        tmp_mat = cam_2_drone_rot_mat*drone_2_local_rot_mat*np.transpose(vec)
+        
+        rot_vec=np.array([tmp_mat[0][0], tmp_mat[1][1], tmp_mat[2][2]])
+
+        return rot_vec
+
+    def tgo_bounded(self, r, v, rho_u, rho_v, m=0.0, min_tgo=0.001):
+        #define the variables of the polynom
+        drho = rho_u - rho_v
+        rr = np.dot(r,r)
+        rv = np.dot(r,v)
+        vv = np.dot(r,v)
+        #define the polynom
+        a0 = -rr+m**2
+        a1 = -2.0*rv
+        a2 = -vv +m*drho
+        a3 = 0.0
+        a4 = 0.25*drho**2
+        P = np.poly1d([a4, a3, a2, a1, a0])
+        # calculate Tgo
+        sol = np.roots(P)
+        real_sol = np.real(sol)[abs(np.imag(sol)) < 1e-5]
+        real_sol = np.real(real_sol)[np.real(real_sol) > 0]
+        if len(real_sol) > 1:
+            Tgo = min(real_sol)
+        elif len(real_sol) == 0:
+            Tgo = min_tgo
+        else:
+            Tgo = real_sol
+        return Tgo + min_tgo
+
+
+    def cont_bounded(self, Tgo, r, v, g, max_thrust=1):
+
+        ux_unb = ((r[0] + Tgo*v[0])/np.linalg.norm(r + Tgo*v))
+        uy_unb = ((r[1] + Tgo*v[1])/np.linalg.norm(r + Tgo*v))
+        uz_unb = ((r[2] + Tgo*v[2])/np.linalg.norm(r + Tgo*v))
+        
+        u = [ux_unb, uy_unb, uz_unb] * max_thrust
+
+        return (u[0], u[1], u[2])
+
     def positioning(self):
 
         rospy.loginfo("***** Tracking the Balloon *****")
@@ -170,12 +258,12 @@ class BalloonKiller(threading.Thread):
             if self.center is not None:
                 try:
                     rospy.loginfo("***** Sending positioning commands *****")
-                    self.center_frame_controller(0.01, 0.5, 0.0)
+                    # self.center_frame_controller(0.01, 0.5, 0.0)
                     rospy.loginfo_throttle(1, "Balloon X: {}, Balloon Y: {}".format(self.center[0], self.center[1]))
 
                     if (self.width / 2.0) - self.center[0] < 2.0 and (self.height / 2.0) - self.center[1] < 2.0:
                         rospy.loginfo("Balloon is in the Middle of the Frame")
-                        self.close_distance()
+                        # self.close_distance()
                         
                     if self.pose.pose.position.z < 1.0:
                         self.des_vel.twist.linear.z = 0.0
@@ -208,7 +296,7 @@ class BalloonKiller(threading.Thread):
                 self.counter = 0
                 self.center = None
                 self.scanning()
-                self.positioning()
+                self.create_vg_state()
             except KeyboardInterrupt:
                 rospy.signal_shutdown("Done")
                 break
