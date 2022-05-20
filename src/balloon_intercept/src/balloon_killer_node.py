@@ -4,6 +4,7 @@ from cv_bridge import CvBridge
 import threading
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import Vector3Stamped
 from mavros_msgs.msg import State
 from mavros_msgs.srv import SetMode
 from mavros_msgs.srv import CommandBool
@@ -41,6 +42,9 @@ class BalloonKiller(threading.Thread):
         self.des_vel.twist.angular.y = 0
         self.des_vel.twist.linear.y = 0
 
+        self.rho_u = 18.0  
+        self.rho_v = 9.81
+
         self.pose_sub = rospy.Subscriber(
             '/mavros/local_position/pose', PoseStamped, self.pose_cb)
         self.vel_sub = rospy.Subscriber(
@@ -52,6 +56,9 @@ class BalloonKiller(threading.Thread):
             '/mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
         self.pose_pub = rospy.Publisher(
             '/mavros/setpoint_position/local', PoseStamped, queue_size=10)
+        self.acc_pub = rospy.Publisher(
+            '/mavros/setpoint_accel/accel', Vector3Stamped, queue_size=10)
+        self.acc_cmd = Vector3Stamped()
 
         self.balloon = Balloon()
 
@@ -183,7 +190,7 @@ class BalloonKiller(threading.Thread):
 
             range_cam = self.range_est()
             local_range =  self.cam_2_local(range_cam)
-            print(local_range)
+            print("range= {}".format(local_range))
 
             vpx = self.vel.twist.linear.x
             vpy = self.vel.twist.linear.y
@@ -191,7 +198,7 @@ class BalloonKiller(threading.Thread):
 
             r = -local_range
             v = -np.array([vpx, vpy, vpz])
-            print("v= {}".format(v))
+            #print("v= {}".format(v))
             return r, v
 
     def cam_2_local(self, vec):
@@ -241,15 +248,33 @@ class BalloonKiller(threading.Thread):
         return Tgo + min_tgo
 
 
-    def cont_bounded(self, Tgo, r, v, g, max_thrust=1):
+    def cont_bounded(self, Tgo, r, v, max_thrust=1):
 
         ux_unb = ((r[0] + Tgo*v[0])/np.linalg.norm(r + Tgo*v))
         uy_unb = ((r[1] + Tgo*v[1])/np.linalg.norm(r + Tgo*v))
         uz_unb = ((r[2] + Tgo*v[2])/np.linalg.norm(r + Tgo*v))
         
-        u = [ux_unb, uy_unb, uz_unb] * max_thrust
+        u = np.array([ux_unb, uy_unb, uz_unb]) * max_thrust
 
-        return (u[0], u[1], u[2])
+        return u
+    
+    def vg_bounded(self):
+        while not rospy.is_shutdown():
+            r,v = self.create_vg_state(self) #get relativerange and velocity in local frame
+
+            tgo = self.tgo_bounded(self, r, v, self.rho_u, self.rho_v, m=0.0, min_tgo=0.001) # calc tgo
+
+            u = self.cont_bounded(self, tgo, r, v, max_thrust=0.7) # calc accelaration command fro VG bounded
+
+            self.acc_cmd.vector.x = u[0]   #construct accelaration msg
+            self.acc_cmd.vector.y = u[1]
+            self.acc_cmd.vector.z = u[2]
+
+            self.acc_pub.publish(self.acc_cmd)  #publish accelaration msg
+            
+            self.rate.sleep()
+
+
 
     def positioning(self):
 
