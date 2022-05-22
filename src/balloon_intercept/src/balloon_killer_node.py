@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from turtle import end_fill
 import rospy
 from cv_bridge import CvBridge
 import threading
@@ -29,6 +30,8 @@ class BalloonKiller(threading.Thread):
         self.width = 320
         self.height = 240
         self.fov = 1.04719 #[rad]
+
+        self.target_position = np.array([0.0, 0.0, 0.0])  #save target position in local (world) frame. init to origin
 
         self.r_m = 0.5  #balloon radius in [m]
         self.counter = 0
@@ -178,28 +181,45 @@ class BalloonKiller(threading.Thread):
 
     def range_est(self):
         ##range in drone NED system 
-        x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))
-        y_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
-        z_range_cam = (self.center[1] - (self.height / 2.0))*self.r_m/self.radius
+        # x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))
+        # y_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
+        # z_range_cam = (self.center[1] - (self.height / 2.0))*self.r_m/self.radius
         
+        ##range in drone ENU system 
+        x_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
+        y_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))
+        z_range_cam = -(self.center[1] - (self.height / 2.0))*self.r_m/self.radius
+
         range_cam = np.array([x_range_cam, y_range_cam, z_range_cam])
         
         return range_cam
 
     def create_vg_state(self):
+        rp_x = self.pose.pose.position.x
+        rp_y = self.pose.pose.position.y
+        rp_z = self.pose.pose.position.z
+            
+        rp = np.array([rp_x, rp_y, rp_z])  #drone position (from GPS)
 
+        if not self.center:
             range_cam = self.range_est()
             local_range =  self.cam_2_local(range_cam)
+
+            self.target_position = rp + local_range #while balloon in frame, update it's location in local frame
+
             print("range= {}".format(local_range))
+            r = local_range
 
-            vpx = self.vel.twist.linear.x
-            vpy = self.vel.twist.linear.y
-            vpz = self.vel.twist.linear.z
+        else:   #if baloon is out of frame, use drone GPS position and last known baloon position
+            r = self.target_position - rp  
+        
+        vpx = self.vel.twist.linear.x  
+        vpy = self.vel.twist.linear.y
+        vpz = self.vel.twist.linear.z
 
-            r = -local_range
-            v = -np.array([vpx, vpy, vpz])
-            #print("v= {}".format(v))
-            return r, v
+        v = -np.array([vpx, vpy, vpz]) #balloon stationary, so relative vel = drone vel
+        #print("v= {}".format(v))
+        return r, v
 
     def cam_2_local(self, vec):
         ##rotate vector from cam to local (wgazebo world) system
@@ -260,15 +280,15 @@ class BalloonKiller(threading.Thread):
     
     def vg_bounded(self):
         while not rospy.is_shutdown():
-            r,v = self.create_vg_state(self) #get relativerange and velocity in local frame
+            r,v = self.create_vg_state() #get relativerange and velocity in local frame
 
-            tgo = self.tgo_bounded(self, r, v, self.rho_u, self.rho_v, m=0.0, min_tgo=0.001) # calc tgo
+            tgo = self.tgo_bounded(r, v, self.rho_u, self.rho_v, m=0.0, min_tgo=0.001) # calc tgo
 
-            u = self.cont_bounded(self, tgo, r, v, max_thrust=0.7) # calc accelaration command fro VG bounded
+            u = self.cont_bounded(tgo, r, v, max_thrust=0.7) # calc accelaration command fro VG bounded
 
             self.acc_cmd.vector.x = u[0]   #construct accelaration msg
             self.acc_cmd.vector.y = u[1]
-            self.acc_cmd.vector.z = u[2]
+            self.acc_cmd.vector.z = u[2] + 0.3
 
             self.acc_pub.publish(self.acc_cmd)  #publish accelaration msg
             
@@ -321,7 +341,7 @@ class BalloonKiller(threading.Thread):
                 self.counter = 0
                 self.center = None
                 self.scanning()
-                self.create_vg_state()
+                self.vg_bounded()
             except KeyboardInterrupt:
                 rospy.signal_shutdown("Done")
                 break
