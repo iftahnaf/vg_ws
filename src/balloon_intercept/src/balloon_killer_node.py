@@ -36,8 +36,6 @@ class BalloonKiller(threading.Thread):
         self.r_m = 0.5  #balloon radius in [m]
         self.counter = 0
 
-
-
         self.pose = PoseStamped()
         self.vel = TwistStamped()
         self.state = State()
@@ -74,6 +72,9 @@ class BalloonKiller(threading.Thread):
         self.center_sub = rospy.Subscriber('/balloon/center', Point, self.center_cb)
         self.radius_sub = rospy.Subscriber('/balloon/radius', Float32, self.radius_cb)
         self.center = []
+        self.tmp_center = self.center
+
+        self.balloon_in_frame = True
 
     def center_cb(self, msg):
         self.center = [0, 0]
@@ -168,32 +169,38 @@ class BalloonKiller(threading.Thread):
         # z_range_cam = (self.center[1] - (self.height / 2.0))*self.r_m/self.radius
         
         ##range in drone ENU system 
-        x_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
-        y_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))
+        x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))  
+        y_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
         z_range_cam = -(self.center[1] - (self.height / 2.0))*self.r_m/self.radius
 
         range_cam = np.array([x_range_cam, y_range_cam, z_range_cam])
         
         return range_cam
 
-    def create_vg_state(self, ballon_in_frame):
+    def create_vg_state(self, balloon_in_frame):
         rp_x = self.pose.pose.position.x
         rp_y = self.pose.pose.position.y
         rp_z = self.pose.pose.position.z
             
         rp = np.array([rp_x, rp_y, rp_z])  #drone position (from GPS)
 
-        if  ballon_in_frame:
+        if  balloon_in_frame:
+            print("balloon in frame")
             range_cam = self.range_est()
             local_range =  self.cam_2_local(range_cam)
 
             self.target_position = rp + local_range #while balloon in frame, update it's location in local frame
-
-            print("range= {}".format(local_range))
+            print("cam_range = {}".format(range_cam))
+            print("range = {}".format(local_range))
+            print("target position = {}".format(self.target_position))
             r = local_range
 
         else:   #if baloon is out of frame, use drone GPS position and last known baloon position
+            print("balloon out of frame")
             r = self.target_position - rp  
+            
+            print("range = {}".format(r))
+            print("target position = {}".format(self.target_position))
         
         vpx = self.vel.twist.linear.x  
         vpy = self.vel.twist.linear.y
@@ -263,11 +270,11 @@ class BalloonKiller(threading.Thread):
     def vg_bounded(self):
         while not rospy.is_shutdown():
             if self.tmp_center == self.center:
-                ballon_in_frame = False
-            else:
-                ballon_in_frame = True
+                self.balloon_in_frame = False
+            # else:
+            #     balloon_in_frame = True
 
-            r,v = self.create_vg_state(ballon_in_frame) #get relativerange and velocity in local frame
+            r,v = self.create_vg_state(self.balloon_in_frame) #get relativerange and velocity in local frame
 
             tgo = self.tgo_bounded(r, v, self.rho_u, self.rho_v, m=0.0, min_tgo=0.001) # calc tgo
 
