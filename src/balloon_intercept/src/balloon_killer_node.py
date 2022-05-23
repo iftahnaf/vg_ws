@@ -127,9 +127,11 @@ class BalloonKiller(threading.Thread):
 
         self.takoff_seq(des_pose)
 
-        while des_pose.pose.position.z - z < err:
+        while not rospy.is_shutdown():
             z = self.pose.pose.position.z
             self.pose_pub.publish(des_pose)
+            if des_pose.pose.position.z - z < err:
+                break
             self.rate.sleep()
         
     def scanning(self):
