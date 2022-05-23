@@ -24,7 +24,7 @@ from scipy.spatial.transform import Rotation as R
 class BalloonKiller(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.rate = rospy.Rate(8)
+        self.rate = rospy.Rate(20)
         self.bridge = CvBridge()
 
         self.width = 320
@@ -127,33 +127,27 @@ class BalloonKiller(threading.Thread):
 
         self.takoff_seq(des_pose)
 
-        while not rospy.is_shutdown():
+        while des_pose.pose.position.z - z < err:
             z = self.pose.pose.position.z
             self.pose_pub.publish(des_pose)
-            if des_pose.pose.position.z - z < err:
-                break
             self.rate.sleep()
         
     def scanning(self):
         self.initialPose()
-        while not rospy.is_shutdown():
-            if self.center is not None:
-                rospy.loginfo("***** Found Balloon! *****")
-                self.balloon = deepcopy(self.pose)
-                self.counter = 0
-                rospy.loginfo("Balloon Center: ({},{})".format(
-                    self.center[0], self.center[1]))
-                self.hold()
-                break
 
-            else:
-                self.des_vel.twist.linear.x = 0.0
-                self.des_vel.twist.linear.z = 0.0
-                self.des_vel.twist.angular.z = 0.2
-                self.vel_pub.publish(self.des_vel)
-
+        while not self.center:
+            self.des_vel.twist.linear.x = 0.0
+            self.des_vel.twist.linear.z = 0.0
+            self.des_vel.twist.angular.z = 0.2
+            self.vel_pub.publish(self.des_vel)
             rospy.loginfo_throttle(10, "***** Scanning for Balloon *****")
             self.rate.sleep()
+
+        rospy.loginfo("***** Found Balloon! *****")
+        self.balloon = deepcopy(self.pose)
+        self.counter = 0
+        rospy.loginfo("Balloon Center: ({},{})".format(self.center[0], self.center[1]))
+        self.hold()
 
     def hold(self):
         hold_time = 2
@@ -161,23 +155,6 @@ class BalloonKiller(threading.Thread):
         while time.time() < hold_time + hold_time_start:
             self.pose_pub.publish(self.balloon)
             self.rate.sleep()
-
-    def center_frame_controller(self, kw, kh, kr):
-        des_range = 2.0
-        range = self.balloon.est_range()
-        
-        if range:
-            rospy.loginfo(" Range from balloon = {}".format(range))
-        else:
-            rospy.loginfo("Can't calculate range...")
-        self.des_vel.twist.angular.z = kw * ((self.width / 2.0) - self.center[0])
-        self.des_vel.twist.linear.z = kh * ((self.height / 2.0) - self.center[1])
-        self.des_vel.twist.linear.x = - kr *((des_range - range))
-
-        if self.des_vel.twist.linear.x > 5.0:
-            self.des_vel.twist.linear.x = 5.0
-
-        self.vel_pub.publish(self.des_vel)
 
     def range_est(self):
         ##range in drone NED system 
@@ -292,46 +269,6 @@ class BalloonKiller(threading.Thread):
 
             self.acc_pub.publish(self.acc_cmd)  #publish accelaration msg
             
-            self.rate.sleep()
-
-
-
-    def positioning(self):
-
-        rospy.loginfo("***** Tracking the Balloon *****")
-        while not rospy.is_shutdown():
-            if self.center is not None:
-                try:
-                    rospy.loginfo("***** Sending positioning commands *****")
-                    # self.center_frame_controller(0.01, 0.5, 0.0)
-                    rospy.loginfo_throttle(1, "Balloon X: {}, Balloon Y: {}".format(self.center[0], self.center[1]))
-
-                    if (self.width / 2.0) - self.center[0] < 2.0 and (self.height / 2.0) - self.center[1] < 2.0:
-                        rospy.loginfo("Balloon is in the Middle of the Frame")
-                        # self.close_distance()
-                        
-                    if self.pose.pose.position.z < 1.0:
-                        self.des_vel.twist.linear.z = 0.0
-                except :
-                    rospy.loginfo("***** Failed to send positioning commands *****")
-                    continue
-            else:
-                rospy.loginfo("Ballon is dissapeared from frame...") 
-                self.counter += 1
-                self.pose_pub.publish(self.pose)
-                if self.counter > 50:
-                    rospy.loginfo("Ballon is gone, restarting...") 
-                    time.sleep(10)
-                    break
-            self.rate.sleep()
-
-    def close_distance(self):
-        rospy.loginfo("****** Start Catching Balloon *****")
-        while not rospy.is_shutdown():
-            if self.center is None:
-                rospy.loginfo("Balloon Out of the Frame, Back to Scanning")
-                break
-            self.center_frame_controller(0.001, 0.005, 0.3)
             self.rate.sleep()
 
     def run(self):
