@@ -170,7 +170,7 @@ class BalloonKiller(threading.Thread):
         
         ##range in drone ENU system 
         x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))  
-        y_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
+        y_range_cam = -(self.center[0] - (self.width / 2.0))*self.r_m/self.radius
         z_range_cam = -(self.center[1] - (self.height / 2.0))*self.r_m/self.radius
 
         range_cam = np.array([x_range_cam, y_range_cam, z_range_cam])
