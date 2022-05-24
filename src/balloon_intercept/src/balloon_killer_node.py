@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from tkinter import Y
 from turtle import end_fill
 import rospy
 from cv_bridge import CvBridge
@@ -143,16 +144,28 @@ class BalloonKiller(threading.Thread):
         
     def scanning(self):
         self.initialPose()
+        
+        balloon_in_range = False
+        x_in_range = False
+        y_in_range = False
+        
+        while not balloon_in_range:
+            if self.center and self.radius:
+                if self.center[0] > (2*self.radius) and self.center[0] < (self.width - 2*self.radius):
+                    x_in_range = True
+                
+                if self.center[1] > (2*self.radius) and self.center[1] < (self.height - 2*self.radius):
+                    y_in_range = True
 
-        while not self.center:
+                if x_in_range and y_in_range:
+                    balloon_in_range = True
+        
             self.des_vel.twist.linear.x = 0.0
             self.des_vel.twist.linear.z = 0.0
             self.des_vel.twist.angular.z = 0.2
             self.vel_pub.publish(self.des_vel)
             rospy.loginfo_throttle(10, "***** Scanning for Balloon *****")
             self.rate.sleep()
-        
-        # while self.center 
 
         rospy.loginfo("***** Found Balloon! *****")
         self.balloon = deepcopy(self.pose)
@@ -175,7 +188,7 @@ class BalloonKiller(threading.Thread):
         z_range_cam = -(self.center[1] - (self.height / 2.0))*self.r_m/self.radius
 
         #multiply by correction factors
-        x_range_cam = x_range_cam*1.1
+        x_range_cam = x_range_cam*1.12
 
         range_cam = np.array([x_range_cam, y_range_cam, z_range_cam])
         
