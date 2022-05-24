@@ -12,6 +12,7 @@ from mavros_msgs.srv import CommandBool
 from mavros_msgs.srv import SetMavFrame
 from geometry_msgs.msg import Point
 from std_msgs.msg import Float32
+from gazebo_msgs.srv import GetModelState
 from copy import deepcopy
 from balloon_trajectory import Balloon
 import time
@@ -73,8 +74,12 @@ class BalloonKiller(threading.Thread):
         self.radius_sub = rospy.Subscriber('/balloon/radius', Float32, self.radius_cb)
         self.center = []
         self.tmp_center = self.center
+        
+        self.min_range_norm = 10000 #save minimal range norm - init to high value
 
         self.balloon_in_frame = True
+
+        self.real_baloon_pose = None 
 
     def center_cb(self, msg):
         self.center = [0, 0]
@@ -163,15 +168,14 @@ class BalloonKiller(threading.Thread):
             self.rate.sleep()
 
     def range_est(self):
-        ##range in drone NED system 
-        # x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))
-        # y_range_cam = (self.center[0] - (self.width / 2.0))*self.r_m/self.radius
-        # z_range_cam = (self.center[1] - (self.height / 2.0))*self.r_m/self.radius
-        
+     
         ##range in drone ENU system 
         x_range_cam = (self.width*self.r_m)/(2*self.radius*np.tan((self.fov)/2))  
         y_range_cam = -(self.center[0] - (self.width / 2.0))*self.r_m/self.radius
         z_range_cam = -(self.center[1] - (self.height / 2.0))*self.r_m/self.radius
+
+        #multiply by correction factors
+        x_range_cam = x_range_cam*1.1
 
         range_cam = np.array([x_range_cam, y_range_cam, z_range_cam])
         
@@ -202,6 +206,14 @@ class BalloonKiller(threading.Thread):
             print("range = {}".format(r))
             print("target position = {}".format(self.target_position))
         
+        range_norm = np.linalg.norm(r)
+        self.min_range_norm = min(self.min_range_norm, range_norm) #save the smallest norm
+        rospy.loginfo("Min range norm = {}".format(self.min_range_norm))
+        
+        norm_to_real_balloon_pose = np.linalg.norm(self.real_baloon_pose-rp)  ##calculate eal miss distance
+        rospy.loginfo("Norm to real baloon position = {}".format(norm_to_real_balloon_pose))
+
+
         vpx = self.vel.twist.linear.x  
         vpy = self.vel.twist.linear.y
         vpz = self.vel.twist.linear.z
@@ -211,7 +223,7 @@ class BalloonKiller(threading.Thread):
         return r, v
 
     def cam_2_local(self, vec):
-        ##rotate vector from cam to local (wgazebo world) system
+        ##rotate vector from cam to local (gazebo world) system
         
         cam_2_drone_rot_mat = np.eye(3)  #rotation matrix from camera to drone system
         
@@ -268,7 +280,7 @@ class BalloonKiller(threading.Thread):
         return u
     
     def vg_bounded(self):
-        while not rospy.is_shutdown():
+        while not rospy.is_shutdown() and self.min_range_norm > 0.3:
             if self.tmp_center == self.center:
                 self.balloon_in_frame = False
             # else:
@@ -289,12 +301,23 @@ class BalloonKiller(threading.Thread):
             self.tmp_center = self.center
 
             self.rate.sleep()
-            
+
+    def get_balloon_real_position(self):
+        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+        balloon_coordinates = model_coordinates("green_sphere", "link")
+        
+        baloon_pose_x = balloon_coordinates.pose.position.x
+        baloon_pose_y = balloon_coordinates.pose.position.y
+        baloon_pose_z = balloon_coordinates.pose.position.z
+        
+        self.real_baloon_pose = np.array([baloon_pose_x, baloon_pose_y, baloon_pose_z])
+        rospy.loginfo_once('Real balloon position = {}'.format(self.real_baloon_pose))
 
     def run(self):
         self.initialPose()
-        while not rospy.is_shutdown():
+        while not rospy.is_shutdown() and self.min_range_norm > 0.3:
             try:
+                self.get_balloon_real_position()
                 self.counter = 0
                 self.center = None
                 self.scanning()

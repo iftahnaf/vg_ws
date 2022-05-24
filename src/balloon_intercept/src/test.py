@@ -1,2 +1,4 @@
 import numpy as np
-print(np.eye(3))
+_a = np.array([1, 3, 2])
+
+print(np.linalg.norm(_a))
