@@ -49,6 +49,7 @@ This repository tested on Ubuntu 18.04 with ROS Melodic and PX4 v1.10.1.
 # Projects
 
 * [Balloon Interception By Drone Using Vector Guidance And Computer Vision](https://www.docdroid.net/jnIfP9l/final-project-poster-pdf)
+  ![](https://user-images.githubusercontent.com/58637596/171797917-5016a917-92ec-4654-b567-7cedb8fde8d1.png)
 
 
 # References
