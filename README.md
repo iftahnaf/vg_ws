@@ -46,10 +46,9 @@ This repository tested on Ubuntu 18.04 with ROS Melodic and PX4 v1.10.1.
         cd vg_ws/
         catkin_make
 
-
 # Projects
 
-* [Balloon Interception By Drone Using Vector Guidance And Computer Vision](https://github.com/iftahnaf/vg_ws/files/8829954/Final.project.poster.pdf)
+* [Balloon Interception By Drone Using Vector Guidance And Computer Vision](https://www.docdroid.net/jnIfP9l/final-project-poster-pdf)
 
 
 # References
