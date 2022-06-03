@@ -15,10 +15,7 @@ Guidance laws that were originally developed for missile guidance, but fit very 
 that can implement acceleration in all spatial directions. The laws also take into account aircraft
 limitations, such as velocity or acceleration saturation. The implementation of the laws is simple,
 efficient and doesn’t require high processing power, as most of the solutions are analytical and don’t
-require complicated numerical solvers. Using the laws requires knowing or estimating the target’s
-range and relative velocity, so the project includes estimation of these values. The laws were
-developed by prof. Shaul Gutman.
-
+require complicated numerical solvers. The laws were developed by prof. Shaul Gutman.
 
 # Installation
 
