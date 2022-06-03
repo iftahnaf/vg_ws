@@ -36,7 +36,7 @@ This repository tested on Ubuntu 18.04 with ROS Melodic and PX4 v1.10.1.
 
     `<arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg my_model_name)/$(arg my_model_name).sdf"/>`
 
-4. Clone the vg_ws repository:
+4. Clone the `vg_ws` repository:
 
         git clone https://github.com/iftahnaf/vg_ws.git
 
