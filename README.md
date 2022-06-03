@@ -42,7 +42,7 @@ This repository tested on Ubuntu 18.04 with ROS Melodic and PX4 v1.10.1.
 
 5. Build the workspace:
 
-        source /opt/ros/melodic # if it's not been sourced by the .bashrc
+        source /opt/ros/melodic/setup.bash # if it's not been sourced by the .bashrc
         cd vg_ws/
         catkin_make
 
